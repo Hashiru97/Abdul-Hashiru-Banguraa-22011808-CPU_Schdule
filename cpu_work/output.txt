@@ -1,0 +1,6 @@
+Shortest job first (SJF):
+Job 1: Waiting time = -495000376
+Job 2: Waiting time = 32767
+Job 3: Waiting time = -1036796560
+Job 4: Waiting time = 21931
+Job 5: Waiting time = 2107564064
