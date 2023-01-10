@@ -10,4 +10,5 @@ int find_next_job(Job *jobs, int num_jobs, int current_time) {
         }
     }
     return min_priority_index;
-}
+} 
+
