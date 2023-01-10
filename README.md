@@ -1,85 +1,61 @@
-int main(int argc, char *argv[]) {
-  int opt;
-  char *input_file_name = NULL;
-  char *output_file_name = NULL;
-  int preemptive = -1;
-  int schedule_algorithm = -1;
-  while ((opt = getopt(argc, argv, "f:o:s:p")) != -1) {
-    switch (opt) {
-      case 'f':
-        input_file_name = optarg;
-        break;
-      case 'o':
-        output_file_name = optarg;
-        break;
-      case 's':
-        schedule_algorithm = atoi(optarg);
-        break;  
-      case 'p':
-        preemptive = atoi(optarg);
-        break;
-      default:
-        fprintf(stderr, "Usage: %s [-f input_file] [-o output_file] [-p]\n", argv[0]);
-        exit(1);
+void sjf(Job *jobs, int num_jobs, int preemptive, FILE *output_file) {
+  printf("\nShortest job first (SJF):\n");
+  fprintf(output_file, "Shortest job first (SJF):\n");
+
+  int current_time = 0;
+  int waiting_time[num_jobs];
+  int remaining_time[num_jobs];
+  for (int i = 0; i < num_jobs; i++) {
+    waiting_time[i] = 0;
+    remaining_time[i] = jobs[i].burst_time;
+  }
+
+  while (TRUE) {
+    int shortest_job = -1;
+    int shortest_time = INT_MAX;
+    for (int i = 0; i < num_jobs; i++) {
+      if (remaining_time[i] > 0 && remaining_time[i] < shortest_time && jobs[i].arrival_time <= current_time) {
+        shortest_time = remaining_time[i];
+        shortest_job = i;
+      }
+    }
+
+    if (shortest_job == -1) {
+      break;
+    }
+
+    remaining_time[shortest_job]--;
+    current_time++;
+
+    for (int i = 0; i < num_jobs; i++) {
+      if (i != shortest_job && remaining_time[i] > 0 && jobs[i].arrival_time <= current_time) {
+        waiting_time[i]++;
+      }
+    }
+
+    if (preemptive == 1) {
+      int shortest_job = -1;
+      int shortest_time = INT_MAX;
+      for (int i = 0; i < num_jobs; i++) {
+        if (remaining_time[i] > 0 && remaining_time[i] < shortest_time && jobs[i].arrival_time <= current_time) {
+          shortest_time = remaining_time[i];
+          shortest_job = i;
+        }
+      }
+
+      if (shortest_time == 0) {
+        remaining_time[shortest_job] = -1;
+        continue;
+      }
     }
   }
 
-  if (input_file_name == NULL) {
-    fprintf(stderr, "Error: Input file not specified.\n");
-    exit(1);
+  int total_waiting_time = 0;
+  for (int i = 0; i < num_jobs; i++) {
+    total_waiting_time += waiting_time[i];
+    printf("p %d: Waiting time = %d\n", i + 1, waiting_time[i]);
+    fprintf(output_file, "p %d: Waiting time = %d ms\n", i + 1, waiting_time[i]);
   }
-
-  if (output_file_name == NULL) {
-    fprintf(stderr, "Error: Output file not specified.\n");
-    exit(1);
-  }
-
-  Job jobs[MAX_JOBS];
-  int num_jobs = read_jobs(jobs, input_file_name);
-  
-  printf("\t Scheduling algorithms:\n");
-  printf("1. First-come-first-served (FCFS)\n");
-  printf("2. Shortest job first (SJF)\n");
-  printf("3. Priority scheduling\n");
-  printf("4. Round Robin\n");
-  printf("Enter the number of the scheduling algorithm to use: ");
-  
-  scanf("%d", &schedule_algorithm);
-
-  printf("Select Preemptive mode:\n");
-  printf("0 - Non-Preemptive mode\n");
-  printf("1 - Peemptive mode\n");
-  scanf("%d", &preemptive);
-
-
-  FILE *output_file = fopen("output.txt", "w");
-  if (output_file == NULL) {
-    fprintf(stderr, "Error: Could not open output file.\n");
-    exit(1);
-  }
-
-  switch (schedule_algorithm) {
-    case 1:
-      fcfs(jobs, num_jobs, output_file);
-      break;
-    case 2:
-      sjf(jobs, num_jobs, preemptive, output_file);
-      break;
-    case 3:
-      priority(jobs, num_jobs, output_file);
-      break;
-    case 4:
-      printf("Enter time quantum: ");
-      int time_slice;
-      scanf("%d", &time_slice);
-      round_robin(jobs, num_jobs, time_slice, output_file);
-      break;
-    default:
-      fprintf(stderr, "Error: Invalid scheduling algorithm.\n");
-      exit(1);
-  }
-     write_jobs(jobs, num_jobs, output_file);
-  fclose(output_file);
-  return 0;
+  float Average_waiting_time = (float)total_waiting_time/ (float)num_jobs;
+  printf("Average waiting time %.2f \n", Average_waiting_time);
 }
-
