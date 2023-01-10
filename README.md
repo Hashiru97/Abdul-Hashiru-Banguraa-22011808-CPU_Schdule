@@ -20,3 +20,4 @@ void priority(Job jobs[], int num_jobs, FILE *output_file)
        printf("Average waiting time: %.2f\n", average_waiting_time);
        fprintf(output_file, "Average waiting time: %.2f\n", average_waiting_time);
 }
+
