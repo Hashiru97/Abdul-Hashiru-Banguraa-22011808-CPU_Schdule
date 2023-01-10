@@ -26,4 +26,5 @@ void round_robin(Job *jobs, int num_jobs, int time_slice, FILE *output_file) {
     float average_waiting_time = (float) total_waiting_time / (float) num_jobs;
     printf("Average waiting time: %.2f\n", average_waiting_time);
     fprintf(output_file, "Average waiting time: %.2f\n", average_waiting_time);
-}
+
+ 
