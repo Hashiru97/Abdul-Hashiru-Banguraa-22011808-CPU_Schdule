@@ -17,7 +17,7 @@ typedef struct {
   int priority;
 } Job;
 
-int preemptive = 0;
+int preemptive = -1;
 int wait_time = 0;
 int turnaround_time = 0;
 
@@ -38,6 +38,21 @@ int read_jobs(Job jobs[], char *file_name) {
   return num_jobs;
 }
 
+int find_next_job(Job *jobs, int num_jobs, int current_time) {
+    int min_priority = INT_MAX;
+    int min_priority_index = -1;
+    for (int i = 0; i < num_jobs; i++) {
+        if (jobs[i].arrival_time <= current_time) {
+            if (jobs[i].priority < min_priority) {
+                min_priority = jobs[i].priority;
+                min_priority_index = i;
+            }
+        }
+    }
+    return min_priority_index;
+}
+
+
 void write_jobs(Job *jobs, int num_jobs, FILE *output_file) {
   output_file = fopen("output.txt", "w");
   for (int i = 0; i < num_jobs; i++) {
@@ -55,15 +70,19 @@ void fcfs(Job *jobs, int num_jobs, FILE *output_file) {
 
   int current_time = 0;
   int waiting_time[num_jobs];
+  int total_waiting_time = 0;
   for (int i = 0; i < num_jobs; i++) {
     waiting_time[i] = current_time - jobs[i].arrival_time;
     current_time += jobs[i].burst_time;
   }
 
   for (int i = 0; i < num_jobs; i++) {
+    total_waiting_time += waiting_time[i];
     printf("p %d: Waiting time = %d\n", i + 1, waiting_time[i]);
     fprintf(output_file, "p %d: Waiting time = %d\n", i + 1, waiting_time[i]);
   }
+   float average_waiting_time = (float) total_waiting_time / (float)num_jobs;
+   printf("Average waiting time %.2f \n", average_waiting_time);
 }
 
 
@@ -103,7 +122,7 @@ void sjf(Job *jobs, int num_jobs, int preemptive, FILE *output_file) {
       }
     }
 
-    if (preemptive) {
+    if (preemptive == 1) {
       int shortest_job = -1;
       int shortest_time = INT_MAX;
       for (int i = 0; i < num_jobs; i++) {
@@ -124,8 +143,10 @@ void sjf(Job *jobs, int num_jobs, int preemptive, FILE *output_file) {
   for (int i = 0; i < num_jobs; i++) {
     total_waiting_time += waiting_time[i];
     printf("p %d: Waiting time = %d\n", i + 1, waiting_time[i]);
-    fprintf(output_file, "p %d: Waiting time = %d\n", i + 1, waiting_time[i]);
+    fprintf(output_file, "p %d: Waiting time = %d ms\n", i + 1, waiting_time[i]);
   }
+  float Average_waiting_time = (float)total_waiting_time/ (float)num_jobs;
+  printf("Average waiting time %.2f \n", Average_waiting_time);
 }
 
  
@@ -135,53 +156,60 @@ void sjf(Job *jobs, int num_jobs, int preemptive, FILE *output_file) {
 //priority function
 void priority(Job jobs[], int num_jobs, FILE *output_file) 
 {
-  float wait_time;
-  int current_time = 0;
-  while (num_jobs > 0) {
-    int highest_priority = -1;
-    for (int j = 0; j < num_jobs; j++) {
-      if (jobs[j].arrival_time <= current_time) {
-        if (highest_priority == -1 || jobs[j].priority > jobs[highest_priority].priority) {
-          highest_priority = j;
+   int current_time = 0;
+    int completed_jobs = 0;
+    int total_waiting_time = 0;
+    while (completed_jobs < num_jobs) {
+        int next_job = find_next_job(jobs, num_jobs, current_time);
+        if (next_job == -1) {
+            current_time++;
+            
         }
-      }
+        int waiting_time = current_time - jobs[next_job].arrival_time;
+        current_time += jobs[next_job].burst_time;
+        completed_jobs++;
+        total_waiting_time += waiting_time;
+        printf( "p %d waiting time %d\n", next_job +1, waiting_time);
+        fprintf(output_file, "p %d waiting time %d\n", next_job + 1, waiting_time);
     }
-    if (highest_priority == -1) {
-      current_time++;
-    } else {
-    
-      printf("P %d\n", highest_priority + 1);
-      wait_time += current_time - jobs[highest_priority].arrival_time;
-      turnaround_time += current_time - jobs[highest_priority].arrival_time + jobs[highest_priority].burst_time;
-      current_time += jobs[highest_priority].burst_time;
-      num_jobs--;
-      jobs[highest_priority] = jobs[num_jobs];
-    
-    }
-  }
-  printf("Average wait time: %f\n", (float)wait_time / num_jobs);
+      float average_waiting_time = (float) total_waiting_time / (float) num_jobs;
+       printf("Average waiting time: %.2f\n", average_waiting_time);
+       fprintf(output_file, "Average waiting time: %.2f\n", average_waiting_time);
 }
 
 
 //round robin function
-void round_robin(Job jobs[], int num_jobs, int time_slice) {
-  int current_time = 0;
-  int current_job = 0;
-  while (num_jobs > 0) {
-    printf("P %d\n", current_job + 1);
-    int run_time = MIN(time_slice, jobs[current_job].burst_time);
-    wait_time += current_time - jobs[current_job].arrival_time;
-    turnaround_time += current_time - jobs[current_job].arrival_time + run_time;
-    current_time += run_time;
-    jobs[current_job].burst_time -= run_time;
-    if (jobs[current_job].burst_time == 0) {
-      num_jobs--;
-      jobs[current_job] = jobs[num_jobs];
+void round_robin(Job *jobs, int num_jobs, int time_slice, FILE *output_file) {
+    int current_time = 0;
+    int completed_jobs = 0;
+    int total_waiting_time = 0;
+    int current_job = 0;
+
+    while (completed_jobs < num_jobs) {
+        // check if the current job has arrived
+        if (jobs[current_job].arrival_time <= current_time) {
+            if (jobs[current_job].burst_time > time_slice) {
+                current_time += time_slice;
+                jobs[current_job].burst_time -= time_slice;
+            } else {
+                current_time += jobs[current_job].burst_time;
+                int waiting_time = current_time - jobs[current_job].arrival_time - jobs[current_job].burst_time;
+                total_waiting_time += waiting_time;
+                printf("p %d  waiting time %d\n", current_job+1, waiting_time);
+                fprintf(output_file, "p %d  waiting time %d\n", current_job+1, waiting_time);
+                completed_jobs++;
+            }
+        } else {
+            current_time++;
+        }
+        current_job = (current_job + 1) % num_jobs;
     }
-    current_job = (current_job + 1) % num_jobs;
-  }
-  printf("Average wait time: %d\n", wait_time / num_jobs);
+    float average_waiting_time = (float) total_waiting_time / (float) num_jobs;
+    printf("Average waiting time: %.2f\n", average_waiting_time);
+    fprintf(output_file, "Average waiting time: %.2f\n", average_waiting_time);
 }
+
+
 
 
 int main(int argc, char *argv[]) {
@@ -255,10 +283,10 @@ int main(int argc, char *argv[]) {
       priority(jobs, num_jobs, output_file);
       break;
     case 4:
-      printf("Enter time slice: ");
+      printf("Enter time quantum: ");
       int time_slice;
       scanf("%d", &time_slice);
-      round_robin(jobs, num_jobs, time_slice);
+      round_robin(jobs, num_jobs, time_slice, output_file);
       break;
     default:
       fprintf(stderr, "Error: Invalid scheduling algorithm.\n");
